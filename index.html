@@ -74,16 +74,12 @@
 
     <script>
         const CURRENT_VERSION = "V5.4.2";
-        const SENSE_RADIUS = 150; 
+        const SENSE_RADIUS = 450; 
         const MAX_ENEMIES = 8;
         const MAX_SIZE = 120;
 
         class NeuralNetwork {
-            constructor(i, h, o) { 
-                this.w_ih = this.rm(h, i); 
-                this.w_hh = this.rm(h, h); 
-                this.w_ho = this.rm(o, h); 
-            }
+            constructor(i, h, o) { this.w_ih = this.rm(h, i); this.w_hh = this.rm(h, h); this.w_ho = this.rm(o, h); }
             rm(r, c) { return new Array(r).fill(0).map(() => new Array(c).fill(0).map(() => Math.random() * 2 - 1)); }
             predict(inputs) {
                 let h1 = this.w_ih.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * (inputs[i] || 0), 0)));
@@ -92,15 +88,11 @@
             }
             mutate(rate) {
                 const m = (w) => (Math.random() < rate) ? w + (Math.random() * 2 - 1) * 0.4 : w;
-                this.w_ih = this.w_ih.map(r => r.map(m)); 
-                this.w_hh = this.w_hh.map(r => r.map(m)); 
-                this.w_ho = this.w_ho.map(r => r.map(m));
+                this.w_ih = this.w_ih.map(r => r.map(m)); this.w_hh = this.w_hh.map(r => r.map(m)); this.w_ho = this.w_ho.map(r => r.map(m));
             }
             copy() {
                 let n = new NeuralNetwork(21, 24, 2);
-                n.w_ih = this.w_ih.map(r => [...r]); 
-                n.w_hh = this.w_hh.map(r => [...r]); 
-                n.w_ho = this.w_ho.map(r => [...r]);
+                n.w_ih = this.w_ih.map(r => [...r]); n.w_hh = this.w_hh.map(r => [...r]); n.w_ho = this.w_ho.map(r => [...r]);
                 return n;
             }
             serialize() { return JSON.stringify({ w_ih: this.w_ih, w_hh: this.w_hh, w_ho: this.w_ho }); }
@@ -120,12 +112,8 @@
         let player = { x: 158, y: 330, size: 24 }, enemies = [], score = 0;
         let aiBest = parseInt(localStorage.getItem('ai_best_v540')) || 0, humanBest = parseInt(localStorage.getItem('human_best_v540')) || 0;
         let isAI = true, keys = {}, isGameOver = false, isPaused = false;
+
         let buildings = [];
-
-        // 按鍵監聽
-        window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if(e.key === " ") e.preventDefault(); });
-        window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
-
         function generateCity() {
             buildings = [];
             for (let i = 0; i < 10; i++) {
@@ -151,139 +139,193 @@
         function initGA() {
             const saved = localStorage.getItem('best_ai_brain_v540');
             let master = saved ? NeuralNetwork.deserialize(saved) : null;
-            population = [];
-            for (let i = 0; i < populationSize; i++) {
-                if (master) {
+            if (master) {
+                for (let i = 0; i < populationSize; i++) {
                     let n = master.copy(); if (i > 0) n.mutate(0.12);
                     population.push({ nn: n, fitness: 0 });
-                } else {
-                    population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
                 }
+            } else {
+                for (let i = 0; i < populationSize; i++) population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
             }
             currentNN = population[currentIndex].nn;
             updateMonitor();
             document.getElementById("versionText").innerText = CURRENT_VERSION;
-            document.getElementById("hBest").innerText = humanBest;
-            document.getElementById("aBest").innerText = aiBest;
         }
 
         function evolve() {
             population.sort((a, b) => b.fitness - a.fitness);
-            let avg = Math.floor(population.reduce((acc, p) => acc + p.fitness, 0) / populationSize);
+            let sum = population.reduce((acc, p) => acc + p.fitness, 0);
+            let avg = Math.floor(sum / populationSize);
             historyAvg.unshift({ gen: generation, score: avg });
-            if (historyAvg.length > 20) historyAvg.pop();
-            
+            if (historyAvg.length > 25) historyAvg.pop();
             localStorage.setItem('gen_history_v540', JSON.stringify(historyAvg));
             localStorage.setItem('best_ai_brain_v540', population[0].nn.serialize());
-
-            let newPop = [];
-            newPop.push({ nn: population[0].nn.copy(), fitness: 0 }); // 精英保留
-            for (let i = 1; i < populationSize; i++) {
-                let p = population[Math.floor(Math.random() * 8)].nn.copy();
-                p.mutate(0.1);
+            updateMonitor();
+            let newPop = [{ nn: population[0].nn.copy(), fitness: 0 }, { nn: population[1].nn.copy(), fitness: 0 }];
+            for (let i = 2; i < populationSize; i++) {
+                let p = population[Math.floor(Math.random() * 12)].nn.copy();
+                p.mutate(i > populationSize - 10 ? 0.35 : 0.08);
                 newPop.push({ nn: p, fitness: 0 });
             }
             population = newPop;
-            generation++;
-            currentIndex = 0;
-            updateMonitor();
         }
 
         function updateMonitor() {
             const listEl = document.getElementById("genList");
             if (listEl) listEl.innerHTML = historyAvg.map((item, idx) => `<div class="gen-item ${idx === 0 ? 'recent' : ''}"><span>第 ${item.gen} 代</span><span>${item.score}</span></div>`).join('');
-            document.getElementById("gen").innerText = generation;
         }
 
         function update() {
             if (isPaused || isGameOver) return;
-            let diff = Math.min(score / 5000, 1);
+            let diff = Math.min(score / 5000, 1); 
 
             if (isAI) {
-                let inputs = [player.x / canvas.width];
-                // 找到最近的敵人作為輸入
-                let sorted = [...enemies].sort((a, b) => (a.y - player.y) - (b.y - player.y));
-                for(let i=0; i<10; i++) {
-                    if(sorted[i]) {
-                        inputs.push((sorted[i].x - player.x)/canvas.width, (sorted[i].y - player.y)/canvas.height);
-                    } else { inputs.push(0, 0); }
+                let px = player.x / canvas.width;
+                let leftSense = Math.max(0, (60 - player.x) / 60); 
+                let rightSense = Math.max(0, (60 - (canvas.width - player.x - player.size)) / 60);
+                let inputs = [px, leftSense * 4, rightSense * 4, (Math.random() - 0.5) * 0.02]; 
+
+                let sorted = [...enemies].sort((a, b) => {
+                    let dA = Math.sqrt(Math.pow((player.x + player.size/2) - (a.x + a.size/2), 2) + Math.pow((player.y + player.size/2) - (a.y + a.size/2), 2));
+                    let dB = Math.sqrt(Math.pow((player.x + player.size/2) - (b.x + b.size/2), 2) + Math.pow((player.y + player.size/2) - (b.y + b.size/2), 2));
+                    return dA - dB;
+                });
+
+                for (let i = 0; i < 2; i++) {
+                    if (sorted[i]) {
+                        let en = sorted[i];
+                        let dx = (player.x + player.size/2) - (en.x + en.size/2);
+                        let dy = (player.y + player.size/2) - (en.y + en.size/2);
+                        
+                        // 調近時間差：25 幀與 50 幀
+                        let fut1_dy = dy - (en.speed * 25);
+                        let fut2_dy = dy - (en.speed * 50);
+                        
+                        let repulsion = 0;
+                        let dist_surface = Math.max(1, Math.sqrt(dx*dx + dy*dy) - (player.size/2 + en.size/2));
+                        if (dist_surface < SENSE_RADIUS) {
+                            repulsion = Math.pow(SENSE_RADIUS / (dist_surface + 10), 2.5) * 0.4; 
+                            if (player.x < en.x + en.size && player.x + player.size > en.x) {
+                                repulsion *= 10.0;
+                                dx += (dx >= 0 ? 10 : -10);
+                            }
+                        }
+                        inputs.push(Math.min(repulsion, 25), dx/canvas.width, dy/canvas.height, fut1_dy/canvas.height, fut2_dy/canvas.height);
+                    } else { inputs.push(0, 0, 0, 0, 0); }
                 }
+
+                for (let i = 0; i < 3; i++) {
+                    let zX = i * (canvas.width / 3) + (canvas.width / 6);
+                    let futRep = 0;
+                    enemies.forEach(en => {
+                        let dy_in_near = (player.y - (en.y + en.speed * 25));
+                        if (dy_in_near > -50) {
+                            let dX = Math.abs(zX - (en.x + en.size/2));
+                            futRep += Math.pow(SENSE_RADIUS / (dX + dy_in_near + 20), 2);
+                        }
+                    });
+                    inputs.push(Math.min(futRep, 20));
+                }
+                for (let i = 0; i < 4; i++) { inputs.push((Math.random()-0.5)*0.1); }
                 let action = currentNN.predict(inputs);
-                if (action[0] > 0) player.x -= 7;
-                if (action[1] > 0) player.x += 7;
+                if (action[0] > 0.05) player.x -= 9.5;
+                if (action[1] > 0.05) player.x += 9.5;
             } else {
-                if (keys['a'] || keys['arrowleft']) player.x -= 7;
-                if (keys['d'] || keys['arrowright']) player.x += 7;
+                if (keys['a']) player.x -= 8.5; if (keys['d']) player.x += 8.5;
             }
 
-            player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+            if (player.x <= 0 || player.x >= canvas.width - player.size) { isGameOver = true; handleDeath(); return; }
 
-            // 生成敵人
-            if (Math.random() < 0.05 + (diff * 0.1) && enemies.length < MAX_ENEMIES) {
-                let size = 20 + Math.random() * 30;
-                enemies.push({ x: Math.random() * (canvas.width - size), y: -size, size, speed: 3 + Math.random() * 5 });
+            document.getElementById("difficultyProgress").style.width = (diff * 100) + "%";
+            if (enemies.length < MAX_ENEMIES) {
+                let spawnRate = (0.04 + (diff * 0.22));
+                if (Math.random() < spawnRate) {
+                    let size = Math.min((Math.random() * 50 + 15) + (diff * 90), MAX_SIZE);
+                    let speed = Math.min(((100 + (diff * 130)) / size) + (Math.random() * 2.5), 12);
+                    enemies.push({ x: Math.random() * (canvas.width - size), y: -size, size, speed });
+                }
             }
 
-            // 更新敵人
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let en = enemies[i]; en.y += en.speed;
-                if (player.x < en.x + en.size && player.x + player.size > en.x && player.y < en.y + en.size && player.y + player.size > en.y) {
-                    handleDeath();
+                if (player.x < en.x + en.size - 4 && player.x + player.size > en.x + 4 && player.y < en.y + en.size - 4 && player.y + player.size > en.y + 4) { isGameOver = true; handleDeath(); return; }
+                if (en.y > canvas.height) {
+                    let sizeBonus = Math.floor(en.size / 2); 
+                    let difficultyMultiplier = 1 + (diff * 2.2);
+                    let distFromCenter = Math.abs((player.x + player.size/2) - canvas.width/2);
+                    let positionMultiplier = (1.5 - (distFromCenter / (canvas.width / 2)) * 0.5);
+                    score += Math.floor(sizeBonus * difficultyMultiplier * positionMultiplier);
+                    enemies.splice(i, 1);
                 }
-                if (en.y > canvas.height) { enemies.splice(i, 1); score += 10; }
             }
-
-            document.getElementById("score").innerText = score;
-            document.getElementById("ind").innerText = (currentIndex + 1) + " / " + populationSize;
-            document.getElementById("difficultyProgress").style.width = (diff * 100) + "%";
+            document.getElementById("score").innerText = score; 
+            document.getElementById("aBest").innerText = aiBest; 
+            document.getElementById("hBest").innerText = humanBest;
+            document.getElementById("gen").innerText = generation; 
+            document.getElementById("ind").innerText = (currentIndex + 1) + " / 50";
         }
 
         function handleDeath() {
-            isGameOver = true;
+            let distRatio = Math.abs((player.x + player.size/2) - canvas.width/2) / (canvas.width/2);
+            let fitness = score * (1.3 - distRatio * 0.8);
             if (isAI) {
-                population[currentIndex].fitness = score;
-                if (score > aiBest) { aiBest = score; localStorage.setItem('ai_best_v540', aiBest); document.getElementById("aBest").innerText = aiBest; }
+                if (score > aiBest) { aiBest = score; localStorage.setItem('ai_best_v540', aiBest); }
+                population[currentIndex].fitness = Math.max(1, fitness); 
                 currentIndex++;
-                if (currentIndex >= populationSize) evolve();
-                resetGameLogic();
+                if (currentIndex >= populationSize) { evolve(); currentIndex = 0; generation++; }
+                setTimeout(resetGameLogic, 10);
             } else {
-                if (score > humanBest) { humanBest = score; localStorage.setItem('human_best_v540', humanBest); document.getElementById("hBest").innerText = humanBest; }
-                document.getElementById("finalScore").innerText = score;
-                document.getElementById("deathOverlay").style.display = "flex";
+                if (score > humanBest) { humanBest = score; localStorage.setItem('human_best_v540', humanBest); }
+                document.getElementById("finalScore").innerText = score; document.getElementById("deathOverlay").style.display = "flex";
             }
         }
 
         function draw() {
             drawCityBackground();
-            ctx.fillStyle = isAI ? "#00f2ff" : "#ffaa00";
-            ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
-            ctx.fillRect(player.x, player.y, player.size, player.size);
+            ctx.setLineDash([8, 4]); ctx.beginPath(); ctx.arc(player.x + player.size / 2, player.y + player.size / 2, SENSE_RADIUS, 0, Math.PI * 2); ctx.strokeStyle = "rgba(0, 242, 255, 0.05)"; ctx.stroke(); ctx.setLineDash([]);
+            
+            ctx.shadowBlur = 15; ctx.shadowColor = isAI ? "#00f2ff" : "#ffff00"; ctx.fillStyle = isAI ? "#00f2ff" : "#ffff00"; ctx.fillRect(player.x, player.y, player.size, player.size);
+            
+            enemies.forEach(en => {
+                let dy = (player.y + player.size/2) - (en.y + en.size/2);
+                let dx = (player.x + player.size/2) - (en.x + en.size/2);
+                let dist = Math.sqrt(dx*dx + dy*dy) - (player.size/2 + en.size/2);
+                
+                if (dist < SENSE_RADIUS) { 
+                    ctx.fillStyle = "#00ff7f"; ctx.shadowColor = "#00ff7f"; ctx.shadowBlur = 10; 
+                    // 未來影子設為完全透明
+                    ctx.fillStyle = "transparent";
+                    ctx.fillRect(en.x, en.y + en.speed * 25, en.size, en.size);
+                    ctx.fillStyle = "#00ff7f";
+                }
+                else { ctx.fillStyle = "#ff4444"; ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; }
+                ctx.fillRect(en.x, en.y, en.size, en.size);
+            });
             ctx.shadowBlur = 0;
 
-            ctx.fillStyle = "#ff4444";
-            enemies.forEach(en => ctx.fillRect(en.x, en.y, en.size, en.size));
-
             if (isPaused) {
-                ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
-                ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.fillText("PAUSED", canvas.width/2, canvas.height/2);
+                ctx.fillStyle = "rgba(255, 0, 0, 0.25)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "white";
+                ctx.font = "900 40px Segoe UI";
+                ctx.textAlign = "center";
+                ctx.shadowColor = "red"; ctx.shadowBlur = 20;
+                ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2 + 10);
+                ctx.shadowBlur = 0;
             }
         }
 
-        function resetGameLogic() { 
-            player.x = 158; enemies = []; score = 0; isGameOver = false; 
-            document.getElementById("deathOverlay").style.display = "none";
-            currentNN = population[currentIndex].nn;
-        }
-
-        function toggleAI() { isAI = true; document.getElementById("toggleAI").classList.add("active"); resetGameLogic(); }
-        function switchToManual() { isAI = false; document.getElementById("toggleAI").classList.remove("active"); resetGameLogic(); }
+        function resetGameLogic() { player.x = 158; enemies = []; score = 0; isGameOver = false; document.getElementById("deathOverlay").style.display = "none"; if (isAI) currentNN = population[currentIndex].nn; }
+        function toggleAI() { isAI = !isAI; document.getElementById("toggleAI").className = isAI ? "active" : ""; resetGameLogic(); }
+        function switchToManual() { isAI = false; document.getElementById("toggleAI").className = ""; resetGameLogic(); }
         function togglePause() { isPaused = !isPaused; document.getElementById("pauseBtn").innerText = isPaused ? "繼續" : "暫停"; }
-        function wipeAI() { if(confirm("確定刪除所有紀錄？")) { localStorage.clear(); location.reload(); } }
-        function resetBrain() { if(confirm("重置大腦？")) { localStorage.removeItem('best_ai_brain_v540'); location.reload(); } }
+        function wipeAI() { if (confirm("確定要重置所有紀錄嗎？")) { localStorage.clear(); location.reload(); } }
+        function resetBrain() { if (confirm("重置電腦將失去所有演化記憶，確定嗎？")) { localStorage.removeItem('best_ai_brain_v540'); localStorage.removeItem('gen_history_v540'); location.reload(); } }
 
+        window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if (e.code === "Space") { e.preventDefault(); togglePause(); } });
+        window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
         function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
-
-        window.onload = () => { generateCity(); initGA(); gameLoop(); };
+        generateCity(); initGA(); gameLoop();
     </script>
 </body>
 </html>
