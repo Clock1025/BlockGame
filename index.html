@@ -1,160 +1,258 @@
-<!DOCTYPE html>
-<html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <title>極簡方塊生存 - V5.4.2</title>
-    <style>
-        body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; background-color: #020205; font-family: 'Segoe UI', sans-serif; color: white; padding: 20px; }
-        .top-dashboard { width: 520px; display: flex; gap: 10px; margin-bottom: 15px; }
-        .score-box { flex: 2; background: rgba(26, 26, 26, 0.9); padding: 15px; border-radius: 12px; border: 1px solid #00f2ff; text-align: center; backdrop-filter: blur(5px); }
-        .best-box { flex: 1; background: rgba(17, 17, 17, 0.9); padding: 10px; border-radius: 12px; border: 1px solid #333; font-size: 11px; display: flex; flex-direction: column; justify-content: center; }
-        .game-container { background: #111; padding: 25px; border-radius: 20px; border: 2px solid #222; display: flex; gap: 20px; box-shadow: 0 0 50px rgba(0, 242, 255, 0.15); position: relative; }
-        .game-column { width: 340px; }
-        canvas { background: #000; border-radius: 10px; display: block; border: 1px solid #444; width: 340px; height: 380px; }
-        .monitor-column { width: 160px; background: rgba(10, 10, 10, 0.9); border-radius: 12px; padding: 15px; border: 1px solid #333; display: flex; flex-direction: column; }
-        .monitor-title { font-size: 13px; color: #00f2ff; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: center; }
-        .gen-list { flex-grow: 1; font-size: 11px; overflow-y: auto; color: #aaa; max-height: 400px; }
-        .gen-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #222; }
-        .gen-item.recent { color: #00f2ff; font-weight: bold; }
-        .ai-status { background: rgba(26, 26, 42, 0.9); padding: 12px; border-radius: 10px; margin-top: 12px; font-size: 11px; border: 1px solid #00f2ff; }
-        .highlight { color: #00f2ff; font-weight: bold; }
-        .progress-container { height: 4px; background: #222; border-radius: 2px; margin-top: 5px; overflow: hidden; }
-        #difficultyProgress { height: 100%; background: #00f2ff; width: 0%; transition: 0.3s; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
-        button { padding: 10px; border-radius: 6px; border: none; background: #222; color: #eee; cursor: pointer; font-size: 11px; transition: 0.2s; font-weight: bold; }
-        button.active { background: #00f2ff; color: #000; }
-        #deathOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(60, 0, 0, 0.92); border-radius: 20px; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(8px); border: 2px solid #ff4444; }
-        .death-title { font-size: 40px; font-weight: 900; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
-    </style>
-</head>
+const CURRENT_VERSION = "V5.4.2";
+const SENSE_RADIUS = 450; 
+const MAX_ENEMIES = 8;
+const MAX_SIZE = 120;
 
-<body>
-    <div class="top-dashboard">
-        <div class="score-box">
-            <div style="font-size: 10px; color: #888; margin-bottom: 5px;">TIME-SENSE TERMINAL</div>
-            <div id="score" style="font-size: 32px; font-weight: 900; color: #00f2ff;">0</div>
-        </div>
-        <div class="best-box">
-            <div style="color: #ffaa00; margin-bottom: 5px;">👤 USER: <span id="hBest">0</span></div>
-            <div style="color: #00f2ff;">🤖 CORE: <span id="aBest">0</span></div>
-        </div>
-    </div>
+class NeuralNetwork {
+    constructor(i, h, o) { this.w_ih = this.rm(h, i); this.w_hh = this.rm(h, h); this.w_ho = this.rm(o, h); }
+    rm(r, c) { return new Array(r).fill(0).map(() => new Array(c).fill(0).map(() => Math.random() * 2 - 1)); }
+    predict(inputs) {
+        let h1 = this.w_ih.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * (inputs[i] || 0), 0)));
+        let h2 = this.w_hh.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h1[i], 0)));
+        return this.w_ho.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h2[i], 0)));
+    }
+    mutate(rate) {
+        const m = (w) => (Math.random() < rate) ? w + (Math.random() * 2 - 1) * 0.4 : w;
+        this.w_ih = this.w_ih.map(r => r.map(m)); this.w_hh = this.w_hh.map(r => r.map(m)); this.w_ho = this.w_ho.map(r => r.map(m));
+    }
+    copy() {
+        let n = new NeuralNetwork(21, 24, 2);
+        n.w_ih = this.w_ih.map(r => [...r]); n.w_hh = this.w_hh.map(r => [...r]); n.w_ho = this.w_ho.map(r => [...r]);
+        return n;
+    }
+    serialize() { return JSON.stringify({ w_ih: this.w_ih, w_hh: this.w_hh, w_ho: this.w_ho }); }
+    static deserialize(s) {
+        try {
+            const d = JSON.parse(s);
+            let n = new NeuralNetwork(21, 24, 2);
+            n.w_ih = d.w_ih; n.w_hh = d.w_hh; n.w_ho = d.w_ho;
+            return n;
+        } catch(e) { return null; }
+    }
+}
 
-    <div class="game-container">
-        <div id="deathOverlay">
-            <div class="death-title">時空斷開</div>
-            <button onclick="resetGameLogic()" style="background: #ff4444; color: white; width: 120px;">重啟訓練</button>
-        </div>
-        <div class="game-column">
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 8px;">
-                <span>EPOCH: <span id="gen" class="highlight">1</span></span>
-                <span>SAMPLE: <span id="ind" class="highlight">1 / 50</span></span>
-            </div>
-            <canvas id="gameCanvas" width="340" height="380"></canvas>
-            <div class="ai-status">
-                <div style="display: flex; justify-content: space-between;">
-                    <span>模式: <span style="color:white;" id="versionText">V5.4.2</span></span>
-                    <span>感應: <span class="highlight">中近程預判</span></span>
-                </div>
-                <div class="progress-container"><div id="difficultyProgress"></div></div>
-            </div>
-            <div class="btn-grid">
-                <button id="toggleAI" class="active" onclick="toggleAI()">AI 模式</button>
-                <button id="pauseBtn" onclick="togglePause()">暫停</button>
-                <button onclick="switchToManual()">手動控制</button>
-                <button onclick="resetBrain()" style="color: #ffaa00; border: 1px solid #ffaa0066;">重置電腦</button>
-                <button onclick="wipeAI()" style="color: #ff4444; grid-column: span 2;">清除所有數據</button>
-            </div>
-        </div>
-        <div class="monitor-column">
-            <div class="monitor-title">演化歷史</div>
-            <div id="genList" class="gen-list"></div>
-        </div>
-    </div>
+let populationSize = 50, population = [], currentIndex = 0, generation = 1, currentNN;
+let historyAvg = JSON.parse(localStorage.getItem('gen_history_v540')) || [];
+const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d");
+let player = { x: 158, y: 330, size: 24 }, enemies = [], score = 0;
+let aiBest = parseInt(localStorage.getItem('ai_best_v540')) || 0, humanBest = parseInt(localStorage.getItem('human_best_v540')) || 0;
+let isAI = true, keys = {}, isGameOver = false, isPaused = false;
+let buildings = [];
 
-    <script>
-        const CURRENT_VERSION = "V5.4.2";
-        const SENSE_RADIUS = 450; 
-        const MAX_ENEMIES = 8;
-        const MAX_SIZE = 120;
+// 初始化
+window.onload = () => {
+    generateCity();
+    initGA();
+    updateDisplay();
+    requestAnimationFrame(gameLoop);
+};
 
-        class NeuralNetwork {
-            constructor(i, h, o) { this.w_ih = this.rm(h, i); this.w_hh = this.rm(h, h); this.w_ho = this.rm(o, h); }
-            rm(r, c) { return new Array(r).fill(0).map(() => new Array(c).fill(0).map(() => Math.random() * 2 - 1)); }
-            predict(inputs) {
-                let h1 = this.w_ih.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * (inputs[i] || 0), 0)));
-                let h2 = this.w_hh.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h1[i], 0)));
-                return this.w_ho.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h2[i], 0)));
-            }
-            mutate(rate) {
-                const m = (w) => (Math.random() < rate) ? w + (Math.random() * 2 - 1) * 0.4 : w;
-                this.w_ih = this.w_ih.map(r => r.map(m)); this.w_hh = this.w_hh.map(r => r.map(m)); this.w_ho = this.w_ho.map(r => r.map(m));
-            }
-            copy() {
-                let n = new NeuralNetwork(21, 24, 2);
-                n.w_ih = this.w_ih.map(r => [...r]); n.w_hh = this.w_hh.map(r => [...r]); n.w_ho = this.w_ho.map(r => [...r]);
-                return n;
-            }
-            serialize() { return JSON.stringify({ w_ih: this.w_ih, w_hh: this.w_hh, w_ho: this.w_ho }); }
-            static deserialize(s) {
-                try {
-                    const d = JSON.parse(s);
-                    let n = new NeuralNetwork(21, 24, 2);
-                    n.w_ih = d.w_ih; n.w_hh = d.w_hh; n.w_ho = d.w_ho;
-                    return n;
-                } catch(e) { return null; }
-            }
+window.addEventListener("keydown", e => keys[e.code] = true);
+window.addEventListener("keyup", e => keys[e.code] = false);
+
+function generateCity() {
+    buildings = [];
+    for (let i = 0; i < 10; i++) {
+        let bHeight = 60 + Math.random() * 160, bWidth = 45 + Math.random() * 40, lights = [];
+        for (let wy = 15; wy < bHeight - 10; wy += 18) {
+            for (let wx = 8; wx < bWidth - 8; wx += 12) { if (Math.random() > 0.98) lights.push({ x: wx, y: wy }); }
         }
+        buildings.push({ x: i * 40 - 20, w: bWidth, h: bHeight, color: `rgb(${10 + Math.random() * 5}, ${10 + Math.random() * 5}, ${15 + Math.random() * 10})`, lightMap: lights });
+    }
+}
 
-        let populationSize = 50, population = [], currentIndex = 0, generation = 1, currentNN;
-        let historyAvg = JSON.parse(localStorage.getItem('gen_history_v540')) || [];
-        const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d");
-        let player = { x: 158, y: 330, size: 24 }, enemies = [], score = 0;
-        let aiBest = parseInt(localStorage.getItem('ai_best_v540')) || 0, humanBest = parseInt(localStorage.getItem('human_best_v540')) || 0;
-        let isAI = true, keys = {}, isGameOver = false, isPaused = false;
+function drawCityBackground() {
+    ctx.fillStyle = "#020208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+    buildings.forEach(b => {
+        ctx.fillStyle = b.color; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
+        ctx.fillStyle = "#00f2ff"; b.lightMap.forEach(lp => ctx.fillRect(b.x + lp.x, canvas.height - b.h + lp.y, 4, 6));
+    });
+}
 
-        let buildings = [];
-        function generateCity() {
-            buildings = [];
-            for (let i = 0; i < 10; i++) {
-                let bHeight = 60 + Math.random() * 160, bWidth = 45 + Math.random() * 40, lights = [];
-                for (let wy = 15; wy < bHeight - 10; wy += 18) {
-                    for (let wx = 8; wx < bWidth - 8; wx += 12) { if (Math.random() > 0.98) lights.push({ x: wx, y: wy }); }
-                }
-                buildings.push({ x: i * 40 - 20, w: bWidth, h: bHeight, color: `rgb(${10 + Math.random() * 5}, ${10 + Math.random() * 5}, ${15 + Math.random() * 10})`, lightMap: lights });
-            }
+function initGA() {
+    const saved = localStorage.getItem('best_ai_brain_v540');
+    let master = saved ? NeuralNetwork.deserialize(saved) : null;
+    population = [];
+    if (master) {
+        for (let i = 0; i < populationSize; i++) {
+            let n = master.copy(); if (i > 0) n.mutate(0.12);
+            population.push({ nn: n, fitness: 0 });
         }
+    } else {
+        for (let i = 0; i < populationSize; i++) population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
+    }
+    currentNN = population[currentIndex].nn;
+    updateMonitor();
+    document.getElementById("hBest").innerText = humanBest;
+    document.getElementById("aBest").innerText = aiBest;
+}
 
-        function drawCityBackground() {
-            ctx.fillStyle = "#020208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            buildings.forEach(b => {
-                ctx.fillStyle = b.color; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
-                ctx.fillStyle = "#00f2ff"; b.lightMap.forEach(lp => ctx.fillRect(b.x + lp.x, canvas.height - b.h + lp.y, 4, 6));
-            });
-            ctx.strokeStyle = "rgba(255, 0, 0, 0.15)"; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(2, 0); ctx.lineTo(2, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(canvas.width - 2, 0); ctx.lineTo(canvas.width - 2, canvas.height); ctx.stroke();
-        }
+function evolve() {
+    population.sort((a, b) => b.fitness - a.fitness);
+    
+    // 儲存當代最佳大腦
+    localStorage.setItem('best_ai_brain_v540', population[0].nn.serialize());
+    
+    let sum = population.reduce((acc, p) => acc + p.fitness, 0);
+    let avg = Math.floor(sum / populationSize);
+    historyAvg.unshift({ gen: generation, score: avg });
+    if (historyAvg.length > 25) historyAvg.pop();
+    localStorage.setItem('gen_history_v540', JSON.stringify(historyAvg));
 
-        function initGA() {
-            const saved = localStorage.getItem('best_ai_brain_v540');
-            let master = saved ? NeuralNetwork.deserialize(saved) : null;
-            if (master) {
-                for (let i = 0; i < populationSize; i++) {
-                    let n = master.copy(); if (i > 0) n.mutate(0.12);
-                    population.push({ nn: n, fitness: 0 });
-                }
+    // 演化下一代
+    let newPopulation = [];
+    newPopulation.push({ nn: population[0].nn.copy(), fitness: 0 }); // 精英保留
+    for (let i = 1; i < populationSize; i++) {
+        let parent = population[Math.floor(Math.random() * 5)].nn; // 從前五名選父母
+        let childNN = parent.copy();
+        childNN.mutate(0.1);
+        newPopulation.push({ nn: childNN, fitness: 0 });
+    }
+    population = newPopulation;
+    generation++;
+    currentIndex = 0;
+    currentNN = population[currentIndex].nn;
+    updateMonitor();
+}
+
+function updateMonitor() {
+    const list = document.getElementById("genList");
+    list.innerHTML = historyAvg.map(h => `<div class="gen-item"><span>GEN ${h.gen}</span><span>AVG: ${h.score}</span></div>`).join('');
+    document.getElementById("gen").innerText = generation;
+    document.getElementById("ind").innerText = `${currentIndex + 1} / ${populationSize}`;
+}
+
+function gameLoop() {
+    if (!isPaused && !isGameOver) {
+        update();
+    }
+    draw();
+    requestAnimationFrame(gameLoop);
+}
+
+function update() {
+    if (isAI) {
+        // AI 感官輸入 (簡化版：玩家位置 + 最近敵人的相對位置)
+        let inputs = [player.x / canvas.width];
+        let sortedEnemies = [...enemies].sort((a, b) => 
+            Math.hypot(a.x - player.x, a.y - player.y) - Math.hypot(b.x - player.x, b.y - player.y)
+        );
+        for(let i=0; i<10; i++) {
+            if(sortedEnemies[i]) {
+                inputs.push((sortedEnemies[i].x - player.x)/canvas.width);
+                inputs.push((sortedEnemies[i].y - player.y)/canvas.height);
             } else {
-                for (let i = 0; i < populationSize; i++) population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
+                inputs.push(0, 0);
             }
-            currentNN = population[currentIndex].nn;
-            updateMonitor();
-            document.getElementById("versionText").innerText = CURRENT_VERSION;
         }
+        let output = currentNN.predict(inputs);
+        if (output[0] > 0.1) player.x -= 5;
+        if (output[0] < -0.1) player.x += 5;
+    } else {
+        if (keys["ArrowLeft"] || keys["KeyA"]) player.x -= 5;
+        if (keys["ArrowRight"] || keys["KeyD"]) player.x += 5;
+    }
 
-        function evolve() {
-            population.sort((a, b) => b.fitness - a.fitness);
-            let sum = population.reduce((acc, p) => acc + p.fitness, 0);
-            let avg = Math.floor(sum / populationSize);
-            historyAvg.unshift({ gen: generation, score: avg });
-            if (historyAvg.length > 25) histor
+    // 邊界限制
+    player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
+
+    // 生成敵人
+    if (Math.random() < 0.08 && enemies.length < MAX_ENEMIES) {
+        enemies.push({ x: Math.random() * (canvas.width - 20), y: -20, s: 2 + Math.random() * 4 });
+    }
+
+    // 更新敵人
+    for (let i = enemies.length - 1; i >= 0; i--) {
+        enemies[i].y += enemies[i].s;
+        // 碰撞檢測
+        if (player.x < enemies[i].x + 20 && player.x + player.size > enemies[i].x &&
+            player.y < enemies[i].y + 20 && player.y + player.size > enemies[i].y) {
+            gameOver();
+        }
+        if (enemies[i].y > canvas.height) {
+            enemies.splice(i, 1);
+            score++;
+            document.getElementById("score").innerText = score;
+            document.getElementById("difficultyProgress").style.width = (score % 100) + "%";
+        }
+    }
+}
+
+function draw() {
+    drawCityBackground();
+    // 畫玩家
+    ctx.fillStyle = isAI ? "#00f2ff" : "#ffaa00";
+    ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
+    ctx.fillRect(player.x, player.y, player.size, player.size);
+    ctx.shadowBlur = 0;
+
+    // 畫敵人
+    ctx.fillStyle = "#ff4444";
+    enemies.forEach(e => ctx.fillRect(e.x, e.y, 20, 20));
+}
+
+function gameOver() {
+    if (isAI) {
+        population[currentIndex].fitness = score;
+        if (score > aiBest) {
+            aiBest = score;
+            localStorage.setItem('ai_best_v540', aiBest);
+            document.getElementById("aBest").innerText = aiBest;
+        }
+        currentIndex++;
+        if (currentIndex >= populationSize) {
+            evolve();
+        }
+        resetGameLogic();
+    } else {
+        if (score > humanBest) {
+            humanBest = score;
+            localStorage.setItem('human_best_v540', humanBest);
+            document.getElementById("hBest").innerText = humanBest;
+        }
+        isGameOver = true;
+        document.getElementById("deathOverlay").style.display = "flex";
+    }
+}
+
+function resetGameLogic() {
+    score = 0;
+    player.x = 158;
+    enemies = [];
+    isGameOver = false;
+    document.getElementById("score").innerText = "0";
+    document.getElementById("deathOverlay").style.display = "none";
+    currentNN = population[currentIndex] ? population[currentIndex].nn : population[0].nn;
+    updateMonitor();
+}
+
+function toggleAI() {
+    isAI = true;
+    document.getElementById("toggleAI").classList.add("active");
+    resetGameLogic();
+}
+
+function switchToManual() {
+    isAI = false;
+    document.getElementById("toggleAI").classList.remove("active");
+    resetGameLogic();
+}
+
+function togglePause() {
+    isPaused = !isPaused;
+    document.getElementById("pauseBtn").innerText = isPaused ? "繼續" : "暫停";
+}
+
+function resetBrain() {
+    if(confirm("重置電腦大腦？這會清除目前的演化進度。")) {
+        localStorage.removeItem('best_ai_brain_v540');
+        location.reload();
+    }
+}
+
+function wipeAI() {
+    if(confirm("確定要清除所有歷史數據嗎？")) {
+        localStorage.clear();
+        location.reload();
+    }
+}
