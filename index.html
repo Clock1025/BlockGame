@@ -1,330 +1,289 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
 <head>
-    <meta charset="UTF-8">
-    <title>極簡方塊生存 - V5.4.2</title>
-    <style>
-        body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; background-color: #020205; font-family: 'Segoe UI', sans-serif; color: white; padding: 20px; }
-        .top-dashboard { width: 520px; display: flex; gap: 10px; margin-bottom: 15px; }
-        .score-box { flex: 2; background: rgba(26, 26, 26, 0.9); padding: 15px; border-radius: 12px; border: 1px solid #00f2ff; text-align: center; backdrop-filter: blur(5px); }
-        .best-box { flex: 1; background: rgba(17, 17, 17, 0.9); padding: 10px; border-radius: 12px; border: 1px solid #333; font-size: 11px; display: flex; flex-direction: column; justify-content: center; }
-        .game-container { background: #111; padding: 25px; border-radius: 20px; border: 2px solid #222; display: flex; gap: 20px; box-shadow: 0 0 50px rgba(0, 242, 255, 0.15); position: relative; }
-        .game-column { width: 340px; }
-        canvas { background: #000; border-radius: 10px; display: block; border: 1px solid #444; width: 340px; height: 380px; }
-        .monitor-column { width: 160px; background: rgba(10, 10, 10, 0.9); border-radius: 12px; padding: 15px; border: 1px solid #333; display: flex; flex-direction: column; }
-        .monitor-title { font-size: 13px; color: #00f2ff; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: center; }
-        .gen-list { flex-grow: 1; font-size: 11px; overflow-y: auto; color: #aaa; max-height: 400px; }
-        .gen-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #222; }
-        .gen-item.recent { color: #00f2ff; font-weight: bold; }
-        .ai-status { background: rgba(26, 26, 42, 0.9); padding: 12px; border-radius: 10px; margin-top: 12px; font-size: 11px; border: 1px solid #00f2ff; }
-        .highlight { color: #00f2ff; font-weight: bold; }
-        .progress-container { height: 4px; background: #222; border-radius: 2px; margin-top: 5px; overflow: hidden; }
-        #difficultyProgress { height: 100%; background: #00f2ff; width: 0%; transition: 0.3s; }
-        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
-        button { padding: 10px; border-radius: 6px; border: none; background: #222; color: #eee; cursor: pointer; font-size: 11px; transition: 0.2s; font-weight: bold; }
-        button.active { background: #00f2ff; color: #000; }
-        #deathOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(60, 0, 0, 0.92); border-radius: 20px; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(8px); border: 2px solid #ff4444; }
-        .death-title { font-size: 40px; font-weight: 900; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
-    </style>
+    <meta charset="UTF-8">
+    <title>極簡方塊生存 - V5.4.2 </title>
+    <style>
+        body { display: flex; flex-direction: column; align-items: center; min-height: 100vh; margin: 0; background-color: #020205; font-family: 'Segoe UI', sans-serif; color: white; padding: 20px; overflow-x: hidden; }
+        .top-dashboard { width: 520px; display: flex; gap: 10px; margin-bottom: 15px; }
+        .score-box { flex: 2; background: rgba(26, 26, 26, 0.9); padding: 15px; border-radius: 12px; border: 1px solid #00f2ff; text-align: center; backdrop-filter: blur(5px); }
+        .best-box { flex: 1; background: rgba(17, 17, 17, 0.9); padding: 10px; border-radius: 12px; border: 1px solid #333; font-size: 11px; display: flex; flex-direction: column; justify-content: center; }
+        .game-container { background: #111; padding: 25px; border-radius: 20px; border: 2px solid #222; display: flex; gap: 20px; box-shadow: 0 0 50px rgba(0, 242, 255, 0.15); position: relative; }
+        .game-column { width: 340px; }
+        canvas { background: #000; border-radius: 10px; display: block; border: 1px solid #444; width: 340px; height: 380px; }
+        .monitor-column { width: 160px; background: rgba(10, 10, 10, 0.9); border-radius: 12px; padding: 15px; border: 1px solid #333; display: flex; flex-direction: column; }
+        .monitor-title { font-size: 13px; color: #00f2ff; font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 5px; text-align: center; }
+        .gen-list { flex-grow: 1; font-size: 11px; overflow-y: auto; color: #aaa; max-height: 400px; }
+        .gen-item { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dashed #222; }
+        .gen-item.recent { color: #00f2ff; font-weight: bold; }
+        .ai-status { background: rgba(26, 26, 42, 0.9); padding: 12px; border-radius: 10px; margin-top: 12px; font-size: 11px; border: 1px solid #00f2ff; }
+        .highlight { color: #00f2ff; font-weight: bold; }
+        .progress-container { height: 4px; background: #222; border-radius: 2px; margin-top: 5px; overflow: hidden; }
+        #difficultyProgress { height: 100%; background: #00f2ff; width: 0%; transition: 0.3s; }
+        .btn-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 15px; }
+        button { padding: 10px; border-radius: 6px; border: none; background: #222; color: #eee; cursor: pointer; font-size: 11px; transition: 0.2s; font-weight: bold; }
+        button.active { background: #00f2ff; color: #000; }
+        #deathOverlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(60, 0, 0, 0.92); border-radius: 20px; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 10; backdrop-filter: blur(8px); border: 2px solid #ff4444; }
+        .death-title { font-size: 40px; font-weight: 900; color: #ff4444; margin-bottom: 10px; text-shadow: 0 0 20px #ff4444; }
+    </style>
 </head>
-
 <body>
-    <div class="top-dashboard">
-        <div class="score-box">
-            <div style="font-size: 10px; color: #888; margin-bottom: 5px;">TIME-SENSE TERMINAL</div>
-            <div id="score" style="font-size: 32px; font-weight: 900; color: #00f2ff;">0</div>
-        </div>
-        <div class="best-box">
-            <div style="color: #ffaa00; margin-bottom: 5px;">👤 USER: <span id="hBest">0</span></div>
-            <div style="color: #00f2ff;">🤖 CORE: <span id="aBest">0</span></div>
-        </div>
-    </div>
+    <div class="top-dashboard">
+        <div class="score-box">
+            <div style="font-size: 10px; color: #888; margin-bottom: 5px;">TIME-SENSE TERMINAL</div>
+            <div id="score" style="font-size: 32px; font-weight: 900; color: #00f2ff;">0</div>
+        </div>
+        <div class="best-box">
+            <div style="color: #ffaa00; margin-bottom: 5px;">👤 USER: <span id="hBest">0</span></div>
+            <div style="color: #00f2ff;">🤖 CORE: <span id="aBest">0</span></div>
+        </div>
+    </div>
 
-    <div class="game-container">
-        <div id="deathOverlay">
-            <div class="death-title">時空斷開</div>
-            <button onclick="resetGameLogic()" style="background: #ff4444; color: white; width: 120px;">重啟訓練</button>
-        </div>
-        <div class="game-column">
-            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 8px;">
-                <span>EPOCH: <span id="gen" class="highlight">1</span></span>
-                <span>SAMPLE: <span id="ind" class="highlight">1 / 50</span></span>
-            </div>
-            <canvas id="gameCanvas" width="340" height="380"></canvas>
-            <div class="ai-status">
-                <div style="display: flex; justify-content: space-between;">
-                    <span>模式: <span style="color:white;" id="versionText">V5.4.2</span></span>
-                    <span>感應: <span class="highlight">中近程預判</span></span>
-                </div>
-                <div class="progress-container"><div id="difficultyProgress"></div></div>
-            </div>
-            <div class="btn-grid">
-                <button id="toggleAI" class="active" onclick="toggleAI()">AI 模式</button>
-                <button id="pauseBtn" onclick="togglePause()">暫停</button>
-                <button onclick="switchToManual()">手動控制</button>
-                <button onclick="resetBrain()" style="color: #ffaa00; border: 1px solid #ffaa0066;">重置電腦</button>
-                <button onclick="wipeAI()" style="color: #ff4444; grid-column: span 2;">清除所有數據</button>
-            </div>
-        </div>
-        <div class="monitor-column">
-            <div class="monitor-title">演化歷史</div>
-            <div id="genList" class="gen-list"></div>
-        </div>
-    </div>
+    <div class="game-container">
+        <div id="deathOverlay">
+            <div class="death-title">時空斷開</div>
+            <div style="margin-bottom: 20px;">得分: <span id="finalScore">0</span></div>
+            <button onclick="resetGameLogic()" style="background: #ff4444; color: white; width: 120px;">重啟訓練</button>
+        </div>
+        <div class="game-column">
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: #666; margin-bottom: 8px;">
+                <span>EPOCH: <span id="gen" class="highlight">1</span></span>
+                <span>SAMPLE: <span id="ind" class="highlight">1 / 50</span></span>
+            </div>
+            <canvas id="gameCanvas" width="340" height="380"></canvas>
+            <div class="ai-status">
+                <div style="display: flex; justify-content: space-between;">
+                    <span>模式: <span style="color:white;" id="versionText">V5.4.2</span></span>
+                    <span>感應: <span class="highlight">中近程預判</span></span>
+                </div>
+                <div class="progress-container"><div id="difficultyProgress"></div></div>
+            </div>
+            <div class="btn-grid">
+                <button id="toggleAI" class="active" onclick="toggleAI()">AI 模式</button>
+                <button id="pauseBtn" onclick="togglePause()">暫停</button>
+                <button onclick="switchToManual()">手動控制</button>
+                <button onclick="resetBrain()" style="color: #ffaa00; border: 1px solid #ffaa0066;">重置電腦</button>
+                <button onclick="wipeAI()" style="color: #ff4444; grid-column: span 2;">清除所有數據</button>
+            </div>
+        </div>
+        <div class="monitor-column">
+            <div class="monitor-title">演化歷史</div>
+            <div id="genList" class="gen-list"></div>
+        </div>
+    </div>
 
-    <script>
-        const CURRENT_VERSION = "V5.4.2";
-        const SENSE_RADIUS = 450; 
-        const MAX_ENEMIES = 8;
-        const MAX_SIZE = 120;
+    <script>
+        const CURRENT_VERSION = "V5.4.2";
+        const SENSE_RADIUS = 150; 
+        const MAX_ENEMIES = 8;
+        const MAX_SIZE = 120;
 
-        class NeuralNetwork {
-            constructor(i, h, o) { this.w_ih = this.rm(h, i); this.w_hh = this.rm(h, h); this.w_ho = this.rm(o, h); }
-            rm(r, c) { return new Array(r).fill(0).map(() => new Array(c).fill(0).map(() => Math.random() * 2 - 1)); }
-            predict(inputs) {
-                let h1 = this.w_ih.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * (inputs[i] || 0), 0)));
-                let h2 = this.w_hh.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h1[i], 0)));
-                return this.w_ho.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h2[i], 0)));
-            }
-            mutate(rate) {
-                const m = (w) => (Math.random() < rate) ? w + (Math.random() * 2 - 1) * 0.4 : w;
-                this.w_ih = this.w_ih.map(r => r.map(m)); this.w_hh = this.w_hh.map(r => r.map(m)); this.w_ho = this.w_ho.map(r => r.map(m));
-            }
-            copy() {
-                let n = new NeuralNetwork(21, 24, 2);
-                n.w_ih = this.w_ih.map(r => [...r]); n.w_hh = this.w_hh.map(r => [...r]); n.w_ho = this.w_ho.map(r => [...r]);
-                return n;
-            }
-            serialize() { return JSON.stringify({ w_ih: this.w_ih, w_hh: this.w_hh, w_ho: this.w_ho }); }
-            static deserialize(s) {
-                try {
-                    const d = JSON.parse(s);
-                    let n = new NeuralNetwork(21, 24, 2);
-                    n.w_ih = d.w_ih; n.w_hh = d.w_hh; n.w_ho = d.w_ho;
-                    return n;
-                } catch(e) { return null; }
-            }
-        }
+        class NeuralNetwork {
+            constructor(i, h, o) { 
+                this.w_ih = this.rm(h, i); 
+                this.w_hh = this.rm(h, h); 
+                this.w_ho = this.rm(o, h); 
+            }
+            rm(r, c) { return new Array(r).fill(0).map(() => new Array(c).fill(0).map(() => Math.random() * 2 - 1)); }
+            predict(inputs) {
+                let h1 = this.w_ih.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * (inputs[i] || 0), 0)));
+                let h2 = this.w_hh.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h1[i], 0)));
+                return this.w_ho.map(row => Math.tanh(row.reduce((acc, w, i) => acc + w * h2[i], 0)));
+            }
+            mutate(rate) {
+                const m = (w) => (Math.random() < rate) ? w + (Math.random() * 2 - 1) * 0.4 : w;
+                this.w_ih = this.w_ih.map(r => r.map(m)); 
+                this.w_hh = this.w_hh.map(r => r.map(m)); 
+                this.w_ho = this.w_ho.map(r => r.map(m));
+            }
+            copy() {
+                let n = new NeuralNetwork(21, 24, 2);
+                n.w_ih = this.w_ih.map(r => [...r]); 
+                n.w_hh = this.w_hh.map(r => [...r]); 
+                n.w_ho = this.w_ho.map(r => [...r]);
+                return n;
+            }
+            serialize() { return JSON.stringify({ w_ih: this.w_ih, w_hh: this.w_hh, w_ho: this.w_ho }); }
+            static deserialize(s) {
+                try {
+                    const d = JSON.parse(s);
+                    let n = new NeuralNetwork(21, 24, 2);
+                    n.w_ih = d.w_ih; n.w_hh = d.w_hh; n.w_ho = d.w_ho;
+                    return n;
+                } catch(e) { return null; }
+            }
+        }
 
-        let populationSize = 50, population = [], currentIndex = 0, generation = 1, currentNN;
-        let historyAvg = JSON.parse(localStorage.getItem('gen_history_v540')) || [];
-        const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d");
-        let player = { x: 158, y: 330, size: 24 }, enemies = [], score = 0;
-        let aiBest = parseInt(localStorage.getItem('ai_best_v540')) || 0, humanBest = parseInt(localStorage.getItem('human_best_v540')) || 0;
-        let isAI = true, keys = {}, isGameOver = false, isPaused = false;
+        let populationSize = 50, population = [], currentIndex = 0, generation = 1, currentNN;
+        let historyAvg = JSON.parse(localStorage.getItem('gen_history_v540')) || [];
+        const canvas = document.getElementById("gameCanvas"), ctx = canvas.getContext("2d");
+        let player = { x: 158, y: 330, size: 24 }, enemies = [], score = 0;
+        let aiBest = parseInt(localStorage.getItem('ai_best_v540')) || 0, humanBest = parseInt(localStorage.getItem('human_best_v540')) || 0;
+        let isAI = true, keys = {}, isGameOver = false, isPaused = false;
+        let buildings = [];
 
-        let buildings = [];
-        function generateCity() {
-            buildings = [];
-            for (let i = 0; i < 10; i++) {
-                let bHeight = 60 + Math.random() * 160, bWidth = 45 + Math.random() * 40, lights = [];
-                for (let wy = 15; wy < bHeight - 10; wy += 18) {
-                    for (let wx = 8; wx < bWidth - 8; wx += 12) { if (Math.random() > 0.98) lights.push({ x: wx, y: wy }); }
-                }
-                buildings.push({ x: i * 40 - 20, w: bWidth, h: bHeight, color: `rgb(${10 + Math.random() * 5}, ${10 + Math.random() * 5}, ${15 + Math.random() * 10})`, lightMap: lights });
-            }
-        }
+        // 按鍵監聽
+        window.addEventListener("keydown", e => { keys[e.key.toLowerCase()] = true; if(e.key === " ") e.preventDefault(); });
+        window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
 
-        function drawCityBackground() {
-            ctx.fillStyle = "#020208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-            buildings.forEach(b => {
-                ctx.fillStyle = b.color; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
-                ctx.fillStyle = "#00f2ff"; b.lightMap.forEach(lp => ctx.fillRect(b.x + lp.x, canvas.height - b.h + lp.y, 4, 6));
-            });
-            ctx.strokeStyle = "rgba(255, 0, 0, 0.15)"; ctx.lineWidth = 4;
-            ctx.beginPath(); ctx.moveTo(2, 0); ctx.lineTo(2, canvas.height); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(canvas.width - 2, 0); ctx.lineTo(canvas.width - 2, canvas.height); ctx.stroke();
-        }
+        function generateCity() {
+            buildings = [];
+            for (let i = 0; i < 10; i++) {
+                let bHeight = 60 + Math.random() * 160, bWidth = 45 + Math.random() * 40, lights = [];
+                for (let wy = 15; wy < bHeight - 10; wy += 18) {
+                    for (let wx = 8; wx < bWidth - 8; wx += 12) { if (Math.random() > 0.98) lights.push({ x: wx, y: wy }); }
+                }
+                buildings.push({ x: i * 40 - 20, w: bWidth, h: bHeight, color: `rgb(${10 + Math.random() * 5}, ${10 + Math.random() * 5}, ${15 + Math.random() * 10})`, lightMap: lights });
+            }
+        }
 
-        function initGA() {
-            const saved = localStorage.getItem('best_ai_brain_v540');
-            let master = saved ? NeuralNetwork.deserialize(saved) : null;
-            if (master) {
-                for (let i = 0; i < populationSize; i++) {
-                    let n = master.copy(); if (i > 0) n.mutate(0.12);
-                    population.push({ nn: n, fitness: 0 });
-                }
-            } else {
-                for (let i = 0; i < populationSize; i++) population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
-            }
-            currentNN = population[currentIndex].nn;
-            updateMonitor();
-            document.getElementById("versionText").innerText = CURRENT_VERSION;
-        }
-        
+        function drawCityBackground() {
+            ctx.fillStyle = "#020208"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            buildings.forEach(b => {
+                ctx.fillStyle = b.color; ctx.fillRect(b.x, canvas.height - b.h, b.w, b.h);
+                ctx.fillStyle = "#00f2ff"; b.lightMap.forEach(lp => ctx.fillRect(b.x + lp.x, canvas.height - b.h + lp.y, 4, 6));
+            });
+            ctx.strokeStyle = "rgba(255, 0, 0, 0.15)"; ctx.lineWidth = 4;
+            ctx.beginPath(); ctx.moveTo(2, 0); ctx.lineTo(2, canvas.height); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(canvas.width - 2, 0); ctx.lineTo(canvas.width - 2, canvas.height); ctx.stroke();
+        }
+
+        function initGA() {
+            const saved = localStorage.getItem('best_ai_brain_v540');
+            let master = saved ? NeuralNetwork.deserialize(saved) : null;
+            population = [];
+            for (let i = 0; i < populationSize; i++) {
+                if (master) {
+                    let n = master.copy(); if (i > 0) n.mutate(0.12);
+                    population.push({ nn: n, fitness: 0 });
+                } else {
+                    population.push({ nn: new NeuralNetwork(21, 24, 2), fitness: 0 });
+                }
+            }
+            currentNN = population[currentIndex].nn;
+            updateMonitor();
+            document.getElementById("versionText").innerText = CURRENT_VERSION;
+            document.getElementById("hBest").innerText = humanBest;
+            document.getElementById("aBest").innerText = aiBest;
+        }
+
         function evolve() {
             population.sort((a, b) => b.fitness - a.fitness);
-            let sum = population.reduce((acc, p) => acc + p.fitness, 0);
-            let avg = Math.floor(sum / populationSize);
+            let avg = Math.floor(population.reduce((acc, p) => acc + p.fitness, 0) / populationSize);
             historyAvg.unshift({ gen: generation, score: avg });
-            if (historyAvg.length > 25) historyAvg.pop();
+            if (historyAvg.length > 20) historyAvg.pop();
+            
             localStorage.setItem('gen_history_v540', JSON.stringify(historyAvg));
             localStorage.setItem('best_ai_brain_v540', population[0].nn.serialize());
-            updateMonitor();
-            let newPop = [{ nn: population[0].nn.copy(), fitness: 0 }, { nn: population[1].nn.copy(), fitness: 0 }];
-            for (let i = 2; i < populationSize; i++) {
-                let p = population[Math.floor(Math.random() * 12)].nn.copy();
-                p.mutate(i > populationSize - 10 ? 0.35 : 0.08);
+
+            let newPop = [];
+            newPop.push({ nn: population[0].nn.copy(), fitness: 0 }); // 精英保留
+            for (let i = 1; i < populationSize; i++) {
+                let p = population[Math.floor(Math.random() * 8)].nn.copy();
+                p.mutate(0.1);
                 newPop.push({ nn: p, fitness: 0 });
             }
             population = newPop;
+            generation++;
+            currentIndex = 0;
+            updateMonitor();
         }
 
         function updateMonitor() {
             const listEl = document.getElementById("genList");
             if (listEl) listEl.innerHTML = historyAvg.map((item, idx) => `<div class="gen-item ${idx === 0 ? 'recent' : ''}"><span>第 ${item.gen} 代</span><span>${item.score}</span></div>`).join('');
+            document.getElementById("gen").innerText = generation;
         }
 
         function update() {
             if (isPaused || isGameOver) return;
-            let diff = Math.min(score / 5000, 1); 
+            let diff = Math.min(score / 5000, 1);
 
             if (isAI) {
-                let px = player.x / canvas.width;
-                let leftSense = Math.max(0, (60 - player.x) / 60); 
-                let rightSense = Math.max(0, (60 - (canvas.width - player.x - player.size)) / 60);
-                let inputs = [px, leftSense * 4, rightSense * 4, (Math.random() - 0.5) * 0.02]; 
-
-                let sorted = [...enemies].sort((a, b) => {
-                    let dA = Math.sqrt(Math.pow((player.x + player.size/2) - (a.x + a.size/2), 2) + Math.pow((player.y + player.size/2) - (a.y + a.size/2), 2));
-                    let dB = Math.sqrt(Math.pow((player.x + player.size/2) - (b.x + b.size/2), 2) + Math.pow((player.y + player.size/2) - (b.y + b.size/2), 2));
-                    return dA - dB;
-                });
-
-                for (let i = 0; i < 2; i++) {
-                    if (sorted[i]) {
-                        let en = sorted[i];
-                        let dx = (player.x + player.size/2) - (en.x + en.size/2);
-                        let dy = (player.y + player.size/2) - (en.y + en.size/2);
-                        
-                        // 調近時間差：25 幀與 50 幀
-                        let fut1_dy = dy - (en.speed * 25);
-                        let fut2_dy = dy - (en.speed * 50);
-                        
-                        let repulsion = 0;
-                        let dist_surface = Math.max(1, Math.sqrt(dx*dx + dy*dy) - (player.size/2 + en.size/2));
-                        if (dist_surface < SENSE_RADIUS) {
-                            repulsion = Math.pow(SENSE_RADIUS / (dist_surface + 10), 2.5) * 0.4; 
-                            if (player.x < en.x + en.size && player.x + player.size > en.x) {
-                                repulsion *= 10.0;
-                                dx += (dx >= 0 ? 10 : -10);
-                            }
-                        }
-                        inputs.push(Math.min(repulsion, 25), dx/canvas.width, dy/canvas.height, fut1_dy/canvas.height, fut2_dy/canvas.height);
-                    } else { inputs.push(0, 0, 0, 0, 0); }
+                let inputs = [player.x / canvas.width];
+                // 找到最近的敵人作為輸入
+                let sorted = [...enemies].sort((a, b) => (a.y - player.y) - (b.y - player.y));
+                for(let i=0; i<10; i++) {
+                    if(sorted[i]) {
+                        inputs.push((sorted[i].x - player.x)/canvas.width, (sorted[i].y - player.y)/canvas.height);
+                    } else { inputs.push(0, 0); }
                 }
-
-                for (let i = 0; i < 3; i++) {
-                    let zX = i * (canvas.width / 3) + (canvas.width / 6);
-                    let futRep = 0;
-                    enemies.forEach(en => {
-                        let dy_in_near = (player.y - (en.y + en.speed * 25));
-                        if (dy_in_near > -50) {
-                            let dX = Math.abs(zX - (en.x + en.size/2));
-                            futRep += Math.pow(SENSE_RADIUS / (dX + dy_in_near + 20), 2);
-                        }
-                    });
-                    inputs.push(Math.min(futRep, 20));
-                }
-                for (let i = 0; i < 4; i++) { inputs.push((Math.random()-0.5)*0.1); }
                 let action = currentNN.predict(inputs);
-                if (action[0] > 0.05) player.x -= 9.5;
-                if (action[1] > 0.05) player.x += 9.5;
+                if (action[0] > 0) player.x -= 7;
+                if (action[1] > 0) player.x += 7;
             } else {
-                if (keys['a']) player.x -= 8.5; if (keys['d']) player.x += 8.5;
+                if (keys['a'] || keys['arrowleft']) player.x -= 7;
+                if (keys['d'] || keys['arrowright']) player.x += 7;
             }
 
-            if (player.x <= 0 || player.x >= canvas.width - player.size) { isGameOver = true; handleDeath(); return; }
+            player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
 
-            document.getElementById("difficultyProgress").style.width = (diff * 100) + "%";
-            if (enemies.length < MAX_ENEMIES) {
-                let spawnRate = (0.04 + (diff * 0.22));
-                if (Math.random() < spawnRate) {
-                    let size = Math.min((Math.random() * 50 + 15) + (diff * 90), MAX_SIZE);
-                    let speed = Math.min(((100 + (diff * 130)) / size) + (Math.random() * 2.5), 12);
-                    enemies.push({ x: Math.random() * (canvas.width - size), y: -size, size, speed });
-                }
+            // 生成敵人
+            if (Math.random() < 0.05 + (diff * 0.1) && enemies.length < MAX_ENEMIES) {
+                let size = 20 + Math.random() * 30;
+                enemies.push({ x: Math.random() * (canvas.width - size), y: -size, size, speed: 3 + Math.random() * 5 });
             }
 
+            // 更新敵人
             for (let i = enemies.length - 1; i >= 0; i--) {
                 let en = enemies[i]; en.y += en.speed;
-                if (player.x < en.x + en.size - 4 && player.x + player.size > en.x + 4 && player.y < en.y + en.size - 4 && player.y + player.size > en.y + 4) { isGameOver = true; handleDeath(); return; }
-                if (en.y > canvas.height) {
-                    let sizeBonus = Math.floor(en.size / 2); 
-                    let difficultyMultiplier = 1 + (diff * 2.2);
-                    let distFromCenter = Math.abs((player.x + player.size/2) - canvas.width/2);
-                    let positionMultiplier = (1.5 - (distFromCenter / (canvas.width / 2)) * 0.5);
-                    score += Math.floor(sizeBonus * difficultyMultiplier * positionMultiplier);
-                    enemies.splice(i, 1);
+                if (player.x < en.x + en.size && player.x + player.size > en.x && player.y < en.y + en.size && player.y + player.size > en.y) {
+                    handleDeath();
                 }
+                if (en.y > canvas.height) { enemies.splice(i, 1); score += 10; }
             }
-            document.getElementById("score").innerText = score; 
-            document.getElementById("aBest").innerText = aiBest; 
-            document.getElementById("hBest").innerText = humanBest;
-            document.getElementById("gen").innerText = generation; 
-            document.getElementById("ind").innerText = (currentIndex + 1) + " / 50";
+
+            document.getElementById("score").innerText = score;
+            document.getElementById("ind").innerText = (currentIndex + 1) + " / " + populationSize;
+            document.getElementById("difficultyProgress").style.width = (diff * 100) + "%";
         }
 
         function handleDeath() {
-            let distRatio = Math.abs((player.x + player.size/2) - canvas.width/2) / (canvas.width/2);
-            let fitness = score * (1.3 - distRatio * 0.8);
+            isGameOver = true;
             if (isAI) {
-                if (score > aiBest) { aiBest = score; localStorage.setItem('ai_best_v540', aiBest); }
-                population[currentIndex].fitness = Math.max(1, fitness); 
+                population[currentIndex].fitness = score;
+                if (score > aiBest) { aiBest = score; localStorage.setItem('ai_best_v540', aiBest); document.getElementById("aBest").innerText = aiBest; }
                 currentIndex++;
-                if (currentIndex >= populationSize) { evolve(); currentIndex = 0; generation++; }
-                setTimeout(resetGameLogic, 10);
+                if (currentIndex >= populationSize) evolve();
+                resetGameLogic();
             } else {
-                if (score > humanBest) { humanBest = score; localStorage.setItem('human_best_v540', humanBest); }
-                document.getElementById("finalScore").innerText = score; document.getElementById("deathOverlay").style.display = "flex";
+                if (score > humanBest) { humanBest = score; localStorage.setItem('human_best_v540', humanBest); document.getElementById("hBest").innerText = humanBest; }
+                document.getElementById("finalScore").innerText = score;
+                document.getElementById("deathOverlay").style.display = "flex";
             }
         }
 
         function draw() {
             drawCityBackground();
-            ctx.setLineDash([8, 4]); ctx.beginPath(); ctx.arc(player.x + player.size / 2, player.y + player.size / 2, SENSE_RADIUS, 0, Math.PI * 2); ctx.strokeStyle = "rgba(0, 242, 255, 0.05)"; ctx.stroke(); ctx.setLineDash([]);
-            
-            ctx.shadowBlur = 15; ctx.shadowColor = isAI ? "#00f2ff" : "#ffff00"; ctx.fillStyle = isAI ? "#00f2ff" : "#ffff00"; ctx.fillRect(player.x, player.y, player.size, player.size);
-            
-            enemies.forEach(en => {
-                let dy = (player.y + player.size/2) - (en.y + en.size/2);
-                let dx = (player.x + player.size/2) - (en.x + en.size/2);
-                let dist = Math.sqrt(dx*dx + dy*dy) - (player.size/2 + en.size/2);
-                
-                if (dist < SENSE_RADIUS) { 
-                    ctx.fillStyle = "#00ff7f"; ctx.shadowColor = "#00ff7f"; ctx.shadowBlur = 10; 
-                    // 未來影子設為完全透明
-                    ctx.fillStyle = "transparent";
-                    ctx.fillRect(en.x, en.y + en.speed * 25, en.size, en.size);
-                    ctx.fillStyle = "#00ff7f";
-                }
-                else { ctx.fillStyle = "#ff4444"; ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; }
-                ctx.fillRect(en.x, en.y, en.size, en.size);
-            });
+            ctx.fillStyle = isAI ? "#00f2ff" : "#ffaa00";
+            ctx.shadowBlur = 15; ctx.shadowColor = ctx.fillStyle;
+            ctx.fillRect(player.x, player.y, player.size, player.size);
             ctx.shadowBlur = 0;
 
+            ctx.fillStyle = "#ff4444";
+            enemies.forEach(en => ctx.fillRect(en.x, en.y, en.size, en.size));
+
             if (isPaused) {
-                ctx.fillStyle = "rgba(255, 0, 0, 0.25)";
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "white";
-                ctx.font = "900 40px Segoe UI";
-                ctx.textAlign = "center";
-                ctx.shadowColor = "red"; ctx.shadowBlur = 20;
-                ctx.fillText("PAUSED", canvas.width / 2, canvas.height / 2 + 10);
-                ctx.shadowBlur = 0;
+                ctx.fillStyle = "rgba(0,0,0,0.5)"; ctx.fillRect(0,0,canvas.width,canvas.height);
+                ctx.fillStyle = "white"; ctx.textAlign = "center"; ctx.fillText("PAUSED", canvas.width/2, canvas.height/2);
             }
         }
 
-        function resetGameLogic() { player.x = 158; enemies = []; score = 0; isGameOver = false; document.getElementById("deathOverlay").style.display = "none"; if (isAI) currentNN = population[currentIndex].nn; }
-        function toggleAI() { isAI = !isAI; document.getElementById("toggleAI").className = isAI ? "active" : ""; resetGameLogic(); }
-        function switchToManual() { isAI = false; document.getElementById("toggleAI").className = ""; resetGameLogic(); }
-        function togglePause() { isPaused = !isPaused; document.getElementById("pauseBtn").innerText = isPaused ? "繼續" : "暫停"; }
-        function wipeAI() { if (confirm("確定要重置所有紀錄嗎？")) { localStorage.clear(); location.reload(); } }
-        function resetBrain() { if (confirm("重置電腦將失去所有演化記憶，確定嗎？")) { localStorage.removeItem('best_ai_brain_v540'); localStorage.removeItem('gen_history_v540'); location.reload(); } }
+        function resetGameLogic() { 
+            player.x = 158; enemies = []; score = 0; isGameOver = false; 
+            document.getElementById("deathOverlay").style.display = "none";
+            currentNN = population[currentIndex].nn;
+        }
 
-window.addEventListener("keyup", e => keys[e.key.toLowerCase()] = false);
+        function toggleAI() { isAI = true; document.getElementById("toggleAI").classList.add("active"); resetGameLogic(); }
+        function switchToManual() { isAI = false; document.getElementById("toggleAI").classList.remove("active"); resetGameLogic(); }
+        function togglePause() { isPaused = !isPaused; document.getElementById("pauseBtn").innerText = isPaused ? "繼續" : "暫停"; }
+        function wipeAI() { if(confirm("確定刪除所有紀錄？")) { localStorage.clear(); location.reload(); } }
+        function resetBrain() { if(confirm("重置大腦？")) { localStorage.removeItem('best_ai_brain_v540'); location.reload(); } }
+
         function gameLoop() { update(); draw(); requestAnimationFrame(gameLoop); }
-        generateCity(); initGA(); gameLoop();
+
+        window.onload = () => { generateCity(); initGA(); gameLoop(); };
     </script>
 </body>
 </html>
